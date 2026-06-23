@@ -7,6 +7,7 @@ import com.example.eventgateway.dto.TransactionRequest;
 import com.example.eventgateway.entity.Event;
 import com.example.eventgateway.exception.EventNotFoundException;
 import com.example.eventgateway.repository.EventRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,10 @@ public class EventServiceImpl implements EventService {
     private final AccountClient accountClient;
 
     @Override
+    @CircuitBreaker(
+            name = "accountService",
+            fallbackMethod = "processEventFallback"
+    )
     public EventResponse processEvent(EventRequest request) {
 
         Event existingEvent = eventRepository
@@ -90,6 +95,21 @@ public class EventServiceImpl implements EventService {
                 .currency(event.getCurrency())
                 .eventTimestamp(event.getEventTimestamp())
                 .status("SUCCESS")
+                .build();
+    }
+
+    private EventResponse processEventFallback(
+            EventRequest request,
+            Exception ex) {
+
+        return EventResponse.builder()
+                .eventId(request.getEventId())
+                .accountId(request.getAccountId())
+                .type(request.getType())
+                .amount(request.getAmount())
+                .currency(request.getCurrency())
+                .eventTimestamp(request.getEventTimestamp())
+                .status("SERVICE_UNAVAILABLE")
                 .build();
     }
 }
