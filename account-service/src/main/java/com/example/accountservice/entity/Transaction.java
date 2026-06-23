@@ -24,13 +24,18 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String eventId;
 
+    @Column(nullable = false)
     private String accountId;
 
+    @Column(nullable = false)
     private String type;
 
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
+    @Column(nullable = false)
     private Instant eventTimestamp;
 }
