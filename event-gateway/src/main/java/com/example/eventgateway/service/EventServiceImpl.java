@@ -5,6 +5,7 @@ import com.example.eventgateway.dto.EventRequest;
 import com.example.eventgateway.dto.EventResponse;
 import com.example.eventgateway.dto.TransactionRequest;
 import com.example.eventgateway.entity.Event;
+import com.example.eventgateway.exception.EventNotFoundException;
 import com.example.eventgateway.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,8 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository
                 .findByEventId(eventId)
                 .orElseThrow(() ->
-                        new RuntimeException("Event not found"));
+                        new EventNotFoundException(
+                                "Event not found: " + eventId));
 
         return mapToResponse(event);
     }
