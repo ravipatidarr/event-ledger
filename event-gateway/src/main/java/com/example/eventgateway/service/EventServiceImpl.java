@@ -9,6 +9,8 @@ import com.example.eventgateway.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
@@ -19,14 +21,12 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventResponse processEvent(EventRequest request) {
 
-        // Idempotency check
-        if (eventRepository.existsByEventId(request.getEventId())) {
+        Event existingEvent = eventRepository
+                .findByEventId(request.getEventId())
+                .orElse(null);
 
-            return EventResponse.builder()
-                    .eventId(request.getEventId())
-                    .accountId(request.getAccountId())
-                    .status("DUPLICATE")
-                    .build();
+        if (existingEvent != null) {
+            return mapToResponse(existingEvent);
         }
 
         Event event = Event.builder()
@@ -38,7 +38,7 @@ public class EventServiceImpl implements EventService {
                 .eventTimestamp(request.getEventTimestamp())
                 .build();
 
-        eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
 
         TransactionRequest transactionRequest =
                 TransactionRequest.builder()
@@ -53,9 +53,40 @@ public class EventServiceImpl implements EventService {
                 request.getAccountId(),
                 transactionRequest);
 
+        return mapToResponse(savedEvent);
+    }
+
+    @Override
+    public EventResponse getEvent(String eventId) {
+
+        Event event = eventRepository
+                .findByEventId(eventId)
+                .orElseThrow(() ->
+                        new RuntimeException("Event not found"));
+
+        return mapToResponse(event);
+    }
+
+    @Override
+    public List<EventResponse> getEventsByAccount(
+            String accountId) {
+
+        return eventRepository
+                .findByAccountIdOrderByEventTimestampAsc(accountId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private EventResponse mapToResponse(Event event) {
+
         return EventResponse.builder()
-                .eventId(request.getEventId())
-                .accountId(request.getAccountId())
+                .eventId(event.getEventId())
+                .accountId(event.getAccountId())
+                .type(event.getType())
+                .amount(event.getAmount())
+                .currency(event.getCurrency())
+                .eventTimestamp(event.getEventTimestamp())
                 .status("SUCCESS")
                 .build();
     }
