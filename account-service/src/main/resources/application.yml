@@ -6,7 +6,7 @@ spring:
     name: account-service
 
   datasource:
-    url: jdbc:h2:mem:accountdb
+    url: jdbc:h2:file:./data/accountdb
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -19,3 +19,24 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: Account Service
+    description: Event Ledger Account Service
+    version: 1.0.0
+
+logging:
+  level:
+    root: INFO
+    com.eventledger: DEBUG

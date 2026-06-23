@@ -8,6 +8,7 @@ import com.example.accountservice.entity.Transaction;
 import com.example.accountservice.repository.AccountRepository;
 import com.example.accountservice.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
@@ -25,8 +27,17 @@ public class AccountServiceImpl implements AccountService {
             String accountId,
             TransactionRequest request) {
 
+        log.info(
+                "Processing transaction for eventId={} accountId={}",
+                request.getEventId(),
+                accountId);
+
         if (transactionRepository.existsByEventId(
                 request.getEventId())) {
+
+            log.warn(
+                    "Duplicate transaction detected for eventId={}",
+                    request.getEventId());
 
             throw new RuntimeException(
                     "Duplicate event");
@@ -54,6 +65,11 @@ public class AccountServiceImpl implements AccountService {
 
         accountRepository.save(account);
 
+        log.info(
+                "Updated balance for accountId={} newBalance={}",
+                accountId,
+                updatedBalance);
+
         Transaction transaction =
                 Transaction.builder()
                         .eventId(request.getEventId())
@@ -66,6 +82,10 @@ public class AccountServiceImpl implements AccountService {
 
         Transaction saved =
                 transactionRepository.save(transaction);
+
+        log.info(
+                "Transaction persisted successfully id={}",
+                saved.getId());
 
         return TransactionResponse.builder()
                 .id(saved.getId())
@@ -82,6 +102,10 @@ public class AccountServiceImpl implements AccountService {
     public AccountBalanceResponse getBalance(
             String accountId) {
 
+        log.info(
+                "Fetching balance for accountId={}",
+                accountId);
+
         Account account =
                 accountRepository.findById(accountId)
                         .orElseThrow();
@@ -96,6 +120,10 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public List<TransactionResponse> getTransactions(
             String accountId) {
+
+        log.info(
+                "Fetching transactions for accountId={}",
+                accountId);
 
         return transactionRepository
                 .findByAccountIdOrderByEventTimestampAsc(

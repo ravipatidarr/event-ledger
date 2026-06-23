@@ -9,12 +9,14 @@ import com.example.eventgateway.exception.EventNotFoundException;
 import com.example.eventgateway.repository.EventRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
@@ -27,11 +29,18 @@ public class EventServiceImpl implements EventService {
     )
     public EventResponse processEvent(EventRequest request) {
 
+        log.info("Processing event {}", request.getEventId());
+
         Event existingEvent = eventRepository
                 .findByEventId(request.getEventId())
                 .orElse(null);
 
         if (existingEvent != null) {
+
+            log.warn(
+                    "Duplicate event received: {}",
+                    request.getEventId());
+
             return mapToResponse(existingEvent);
         }
 
@@ -46,6 +55,10 @@ public class EventServiceImpl implements EventService {
 
         Event savedEvent = eventRepository.save(event);
 
+        log.info(
+                "Event persisted successfully: {}",
+                savedEvent.getEventId());
+
         TransactionRequest transactionRequest =
                 TransactionRequest.builder()
                         .eventId(request.getEventId())
@@ -55,15 +68,25 @@ public class EventServiceImpl implements EventService {
                         .eventTimestamp(request.getEventTimestamp())
                         .build();
 
+        log.info(
+                "Calling account-service for accountId={}",
+                request.getAccountId());
+
         accountClient.processTransaction(
                 request.getAccountId(),
                 transactionRequest);
+
+        log.info(
+                "Transaction processed successfully for accountId={}",
+                request.getAccountId());
 
         return mapToResponse(savedEvent);
     }
 
     @Override
     public EventResponse getEvent(String eventId) {
+
+        log.info("Fetching event {}", eventId);
 
         Event event = eventRepository
                 .findByEventId(eventId)
@@ -77,6 +100,10 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventResponse> getEventsByAccount(
             String accountId) {
+
+        log.info(
+                "Fetching events for accountId={}",
+                accountId);
 
         return eventRepository
                 .findByAccountIdOrderByEventTimestampAsc(accountId)
@@ -101,6 +128,11 @@ public class EventServiceImpl implements EventService {
     private EventResponse processEventFallback(
             EventRequest request,
             Exception ex) {
+
+        log.error(
+                "Account service unavailable for eventId={}",
+                request.getEventId(),
+                ex);
 
         return EventResponse.builder()
                 .eventId(request.getEventId())
